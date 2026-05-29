@@ -368,30 +368,48 @@ body {
     transition: width 0.5s ease;
 }
 
-.dimension-tip {
-    font-size: 13px;
-    color: #555;
-    line-height: 1.6;
-    background: #f0f4ff;
-    border-radius: 8px;
-    padding: 10px 14px;
+.dimension-full-tip {
+    background: #fafbff;
+    border: 1px solid #e8ecf4;
+    border-radius: 10px;
+    padding: 14px;
     margin-top: 4px;
 }
 
-.dimension-tip-dir {
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    margin-right: 4px;
+.tip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 0;
 }
 
-.dimension-tip-dir.high {
+.tip-row + .tip-row {
+    border-top: 1px dashed #e8ecf4;
+    margin-top: 4px;
+    padding-top: 8px;
+}
+
+.tip-tag {
+    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.tip-tag.high {
     background: #ffe0e0;
     color: #d63031;
 }
 
-.dimension-tip-dir.low {
+.tip-tag.low {
     background: #e0f0ff;
     color: #0984e3;
+}
+
+.tip-text {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.6;
 }

@@ -466,22 +466,24 @@ function showResult(primaryType, secondaryTypes) {
 
     var db = document.getElementById('dimension-bars');
     db.innerHTML = '';
-    for (var dim in scores) {
+    var dimOrder = ['collaboration', 'style', 'narrative', 'unequal', 'object'];
+    dimOrder.forEach(function(dim) {
         var maxDS = 0;
         questions.forEach(function(q) { if (q.dimension === dim) maxDS += 5; });
-        var pct = Math.round(scores[dim] / maxDS * 100);
+        var raw = scores[dim];
+        var pct = Math.round(raw / maxDS * 100);
         var desc = dimensionDescriptions[dim];
-        var hi = pct >= 50;
-        var tip = hi ? desc.high : desc.low;
-        var dir = hi ? '高' : '低';
         var item = document.createElement('div');
         item.className = 'dimension-item';
         item.innerHTML =
-            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + pct + '分</span></div>' +
+            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + raw + '/' + maxDS + '（' + pct + '%）</span></div>' +
             '<div class="dimension-track"><div class="dimension-fill" style="width:' + pct + '%"></div></div>' +
-            '<div class="dimension-tip"><span class="dimension-tip-dir ' + (hi ? 'high' : 'low') + '">' + dir + '分：</span>' + tip + '</div>';
+            '<div class="dimension-full-tip">' +
+                '<div class="tip-row"><span class="tip-tag high">▲ 高分</span><span class="tip-text">' + desc.high + '</span></div>' +
+                '<div class="tip-row"><span class="tip-tag low">▼ 低分</span><span class="tip-text">' + desc.low + '</span></div>' +
+            '</div>';
         db.appendChild(item);
-    }
+    });
 }
 
 function restartTest() {
