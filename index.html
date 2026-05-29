@@ -998,9 +998,10 @@ function showResult(primaryType, secondaryTypes, scores, dimMaxScores, typeAvgs)
     var db = document.getElementById('dimension-bars');
     db.innerHTML = '';
     var dimOrder = ['collaboration', 'style', 'narrative', 'unequal', 'object'];
+    var dimCounts = { collaboration: 20, style: 16, narrative: 16, unequal: 20, object: 28 };
     dimOrder.forEach(function(dim) {
         var raw = scores[dim];
-        var max = dimMaxScores[dim];
+        var max = dimCounts[dim] * 5;
         var pct = Math.round((raw / max) * 100);
         var desc = dimensionDescriptions[dim];
         var item = document.createElement('div');
