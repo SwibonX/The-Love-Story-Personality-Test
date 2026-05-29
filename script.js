@@ -411,35 +411,63 @@ function prevQuestion() {
 }
 
 function calculateResults() {
+    // 1. 计算各类型原始总分和维度总分
     questions.forEach(function(q, i) {
-        var sc = answers[i] + 1;
+        var sc = answers[i] + 1; // 1-5分
         scores[q.dimension] += sc;
-        if (!typeScores[q.type]) typeScores[q.type] = 0;
-        typeScores[q.type] += sc;
+        if (!typeScores[q.type]) {
+            typeScores[q.type] = { raw: 0, count: 0, avg: 0 };
+        }
+        typeScores[q.type].raw += sc;
+        typeScores[q.type].count += 1;
     });
 
-    var maxDim = 'unequal', maxS = scores.unequal;
-    for (var d in scores) { if (scores[d] > maxS) { maxS = scores[d]; maxDim = d; } }
+    // 2. 计算每个类型的平均分（标准化，消除题目数量差异）
+    var typeAvgs = {};
+    for (var t in typeScores) {
+        typeScores[t].avg = typeScores[t].raw / typeScores[t].count;
+        typeAvgs[t] = typeScores[t].avg;
+    }
 
-    var dimTypes = [];
-    questions.forEach(function(q) { if (q.dimension === maxDim && dimTypes.indexOf(q.type) === -1) dimTypes.push(q.type); });
-    var maxType = dimTypes[0], maxTS = typeScores[maxType];
-    dimTypes.forEach(function(t) { if (typeScores[t] > maxTS) { maxTS = typeScores[t]; maxType = t; } });
+    // 3. 计算每个维度的平均分（用于展示）
+    var dimCounts = {};
+    questions.forEach(function(q) {
+        dimCounts[q.dimension] = (dimCounts[q.dimension] || 0) + 1;
+    });
+    var dimAvgs = {};
+    for (var d in scores) {
+        dimAvgs[d] = scores[d] / dimCounts[d];
+    }
 
+    // 4. 从所有25个类型中找出主导人格（按平均分排序，公平比较）
+    var sortedTypes = Object.keys(typeAvgs).sort(function(a, b) {
+        return typeAvgs[b] - typeAvgs[a];
+    });
+    var maxType = sortedTypes[0];
+
+    // 5. 找出次要人格（排除主导人格后的前2名）
     var secTypes = [];
-    var allT = Object.keys(typeScores).sort(function(a, b) { return typeScores[b] - typeScores[a]; });
-    allT.forEach(function(t) { if (t !== maxType && secTypes.length < 2) secTypes.push(t); });
+    for (var i = 1; i < sortedTypes.length && secTypes.length < 2; i++) {
+        secTypes.push(sortedTypes[i]);
+    }
 
-    showResult(maxType, secTypes);
+    // 6. 找出最高维度（用于组合分析参考）
+    var sortedDims = Object.keys(dimAvgs).sort(function(a, b) {
+        return dimAvgs[b] - dimAvgs[a];
+    });
+
+    showResult(maxType, secTypes, dimAvgs, typeAvgs, sortedDims);
 }
 
-function showResult(primaryType, secondaryTypes) {
+function showResult(primaryType, secondaryTypes, dimAvgs, typeAvgs, sortedDims) {
     questionScreen.classList.remove('active');
     resultScreen.classList.add('active');
 
+    // 主导人格
     document.getElementById('primary-name').textContent = personalities[primaryType].name;
     document.getElementById('primary-desc').textContent = personalities[primaryType].desc;
 
+    // 组合分析
     var cc = document.getElementById('combination-container');
     cc.innerHTML = '';
     var found = null;
@@ -452,31 +480,33 @@ function showResult(primaryType, secondaryTypes) {
     if (found) {
         cc.innerHTML = '<h3>' + found.title + '</h3><div class="analysis-text">' + found.analysis + '</div><div class="pain-point"><div class="pain-point-title">⚠️ 痛点提醒</div><div class="pain-point-text">' + found.pain + '</div></div>';
     } else {
-        cc.innerHTML = '<h3>你的爱情故事</h3><div class="analysis-text">你拥有独特的爱情剧本，这是专属于你的感情模式。</div>';
+        cc.innerHTML = '<h3>你的爱情故事</h3><div class="analysis-text">你的主导人格是「' + personalities[primaryType].name + '」，辅以「' + personalities[secondaryTypes[0]].name + '」和「' + personalities[secondaryTypes[1]].name + '」。这是一种独特的组合，既有' + personalities[primaryType].name + '的核心特质，又兼具其他维度的色彩。</div>';
     }
 
+    // 次要人格（显示得分）
     var sc = document.getElementById('secondary-container');
     sc.innerHTML = '';
     secondaryTypes.forEach(function(t) {
+        var avg = typeAvgs[t];
+        var pct = Math.round((avg / 5) * 100);
         var card = document.createElement('div');
         card.className = 'secondary-card';
-        card.innerHTML = '<h4>' + personalities[t].name + '</h4><p>' + personalities[t].desc + '</p>';
+        card.innerHTML = '<div class="sec-header"><h4>' + personalities[t].name + '</h4><span class="sec-score">' + avg.toFixed(2) + '/5.0</span></div><p>' + personalities[t].desc + '</p><div class="sec-bar-track"><div class="sec-bar-fill" style="width:' + pct + '%"></div></div>';
         sc.appendChild(card);
     });
 
+    // 维度得分（使用平均分，更公平）
     var db = document.getElementById('dimension-bars');
     db.innerHTML = '';
     var dimOrder = ['collaboration', 'style', 'narrative', 'unequal', 'object'];
     dimOrder.forEach(function(dim) {
-        var maxDS = 0;
-        questions.forEach(function(q) { if (q.dimension === dim) maxDS += 5; });
-        var raw = scores[dim];
-        var pct = Math.round(raw / maxDS * 100);
+        var avg = dimAvgs[dim];
+        var pct = Math.round((avg / 5) * 100);
         var desc = dimensionDescriptions[dim];
         var item = document.createElement('div');
         item.className = 'dimension-item';
         item.innerHTML =
-            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + raw + '/' + maxDS + '（' + pct + '%）</span></div>' +
+            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + avg.toFixed(2) + '/5.0（' + pct + '%）</span></div>' +
             '<div class="dimension-track"><div class="dimension-fill" style="width:' + pct + '%"></div></div>' +
             '<div class="dimension-full-tip">' +
                 '<div class="tip-row"><span class="tip-tag high">▲ 高分</span><span class="tip-text">' + desc.high + '</span></div>' +
@@ -484,6 +514,34 @@ function showResult(primaryType, secondaryTypes) {
             '</div>';
         db.appendChild(item);
     });
+
+    // 添加类型得分明细（可选，帮助用户理解）
+    var typeDetail = document.createElement('div');
+    typeDetail.className = 'type-detail';
+    typeDetail.innerHTML = '<h3>25种类型得分明细</h3><div class="type-grid" id="type-grid"></div>';
+
+    // 检查是否已有类型明细区域，没有则添加
+    var existing = document.querySelector('.type-detail');
+    if (!existing) {
+        db.parentNode.appendChild(typeDetail);
+    }
+
+    var tg = document.getElementById('type-grid');
+    if (tg) {
+        tg.innerHTML = '';
+        var allTypes = Object.keys(typeAvgs).sort(function(a, b) { return typeAvgs[b] - typeAvgs[a]; });
+        allTypes.forEach(function(t, idx) {
+            var avg = typeAvgs[t];
+            var pct = Math.round((avg / 5) * 100);
+            var isPrimary = t === primaryType;
+            var isSecondary = secondaryTypes.indexOf(t) !== -1;
+            var badge = isPrimary ? 'primary' : (isSecondary ? 'secondary' : '');
+            var cell = document.createElement('div');
+            cell.className = 'type-cell ' + badge;
+            cell.innerHTML = '<span class="type-rank">' + (idx + 1) + '</span><span class="type-name">' + personalities[t].name + '</span><span class="type-avg">' + avg.toFixed(2) + '</span><div class="type-mini-bar"><div class="type-mini-fill" style="width:' + pct + '%"></div></div>';
+            tg.appendChild(cell);
+        });
+    }
 }
 
 function restartTest() {
