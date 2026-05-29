@@ -920,9 +920,11 @@ function prevQuestion() {
 }
 
 function calculateResults() {
-    // 1. 计算各类型原始总分和维度总分
+    var scores = { unequal: 0, object: 0, collaboration: 0, narrative: 0, style: 0 };
+    var typeScores = {};
+
     questions.forEach(function(q, i) {
-        var sc = answers[i] + 1; // 1-5分
+        var sc = answers[i] + 1;
         scores[q.dimension] += sc;
         if (!typeScores[q.type]) {
             typeScores[q.type] = { raw: 0, count: 0, avg: 0 };
@@ -931,52 +933,42 @@ function calculateResults() {
         typeScores[q.type].count += 1;
     });
 
-    // 2. 计算每个类型的平均分（标准化，消除题目数量差异）
     var typeAvgs = {};
     for (var t in typeScores) {
         typeScores[t].avg = typeScores[t].raw / typeScores[t].count;
         typeAvgs[t] = typeScores[t].avg;
     }
 
-    // 3. 计算每个维度的平均分（用于展示）
-    var dimCounts = {};
+    var dimCounts = { unequal: 0, object: 0, collaboration: 0, narrative: 0, style: 0 };
     questions.forEach(function(q) {
-        dimCounts[q.dimension] = (dimCounts[q.dimension] || 0) + 1;
+        dimCounts[q.dimension]++;
     });
-    var dimAvgs = {};
-    for (var d in scores) {
-        dimAvgs[d] = scores[d] / dimCounts[d];
+
+    var dimMaxScores = {};
+    for (var d in dimCounts) {
+        dimMaxScores[d] = dimCounts[d] * 5;
     }
 
-    // 4. 从所有25个类型中找出主导人格（按平均分排序，公平比较）
     var sortedTypes = Object.keys(typeAvgs).sort(function(a, b) {
         return typeAvgs[b] - typeAvgs[a];
     });
     var maxType = sortedTypes[0];
 
-    // 5. 找出次要人格（排除主导人格后的前2名）
     var secTypes = [];
     for (var i = 1; i < sortedTypes.length && secTypes.length < 2; i++) {
         secTypes.push(sortedTypes[i]);
     }
 
-    // 6. 找出最高维度（用于组合分析参考）
-    var sortedDims = Object.keys(dimAvgs).sort(function(a, b) {
-        return dimAvgs[b] - dimAvgs[a];
-    });
-
-    showResult(maxType, secTypes, dimAvgs, typeAvgs);
+    showResult(maxType, secTypes, scores, dimMaxScores, typeAvgs);
 }
 
-function showResult(primaryType, secondaryTypes, dimAvgs, typeAvgs) {
+function showResult(primaryType, secondaryTypes, scores, dimMaxScores, typeAvgs) {
     questionScreen.classList.remove('active');
     resultScreen.classList.add('active');
 
-    // 主导人格
     document.getElementById('primary-name').textContent = personalities[primaryType].name;
     document.getElementById('primary-desc').textContent = personalities[primaryType].desc;
 
-    // 组合分析
     var cc = document.getElementById('combination-container');
     cc.innerHTML = '';
     var found = null;
@@ -989,10 +981,9 @@ function showResult(primaryType, secondaryTypes, dimAvgs, typeAvgs) {
     if (found) {
         cc.innerHTML = '<h3>' + found.title + '</h3><div class="analysis-text">' + found.analysis + '</div><div class="pain-point"><div class="pain-point-title">⚠️ 痛点提醒</div><div class="pain-point-text">' + found.pain + '</div></div>';
     } else {
-        cc.innerHTML = '<h3>你的爱情故事</h3><div class="analysis-text">你的主导人格是「' + personalities[primaryType].name + '」，辅以「' + personalities[secondaryTypes[0]].name + '」和「' + personalities[secondaryTypes[1]].name + '」。这是一种独特的组合，既有' + personalities[primaryType].name + '的核心特质，又兼具其他维度的色彩。</div>';
+        cc.innerHTML = '<h3>你的爱情故事</h3><div class="analysis-text">你拥有独特的爱情剧本组合。</div>';
     }
 
-    // 次要人格（只显示标准化进度条，不显示具体得分）
     var sc = document.getElementById('secondary-container');
     sc.innerHTML = '';
     secondaryTypes.forEach(function(t) {
@@ -1004,18 +995,18 @@ function showResult(primaryType, secondaryTypes, dimAvgs, typeAvgs) {
         sc.appendChild(card);
     });
 
-    // 维度得分（显示标准化百分比）
     var db = document.getElementById('dimension-bars');
     db.innerHTML = '';
     var dimOrder = ['collaboration', 'style', 'narrative', 'unequal', 'object'];
     dimOrder.forEach(function(dim) {
-        var avg = dimAvgs[dim];
-        var pct = Math.round((avg / 5) * 100);
+        var raw = scores[dim];
+        var max = dimMaxScores[dim];
+        var pct = Math.round((raw / max) * 100);
         var desc = dimensionDescriptions[dim];
         var item = document.createElement('div');
         item.className = 'dimension-item';
         item.innerHTML =
-            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + pct + '%</span></div>' +
+            '<div class="dimension-label"><span>' + desc.title + '</span><span class="dimension-score">' + raw + '/' + max + '（' + pct + '%）</span></div>' +
             '<div class="dimension-track"><div class="dimension-fill" style="width:' + pct + '%"></div></div>' +
             '<div class="dimension-full-tip">' +
                 '<div class="tip-row"><span class="tip-tag high">▲ 高分</span><span class="tip-text">' + desc.high + '</span></div>' +
@@ -1023,12 +1014,13 @@ function showResult(primaryType, secondaryTypes, dimAvgs, typeAvgs) {
             '</div>';
         db.appendChild(item);
     });
-
 }
 
 function restartTest() {
     resultScreen.classList.remove('active');
     startScreen.classList.add('active');
+    currentQuestion = 0;
+    answers = [];
 }
 </script>
 </body>
